@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 from rag_store import retrieve
+from flight_store import is_flight_query, query_flights
 
 app = FastAPI(title="AI Call Center Engine")
 
@@ -79,21 +80,39 @@ async def chat(request: ChatRequest):
         )
         search_query = f"{raw_message} {recent_text}"[:300]
 
-    # Retrieve relevant knowledge from JusBid vector store / local fallback (retrieve 5 docs to give 3-4 choices)
+    knowledge_sections = []
+
+    # Check for flight intent
+    flight_intent = is_flight_query(raw_message) or is_flight_query(search_query)
+    if flight_intent:
+        try:
+            # Query MongoDB flight collection (BOM <-> BLR)
+            flight_context, flights = query_flights(
+                search_query,
+                max_results=45 if any(w in raw_message.lower() for w in ["all", "every", "complete"]) else 10
+            )
+            if flight_context:
+                knowledge_sections.append(flight_context)
+        except Exception as exc:
+            print(f"Flight query error: {exc}")
+
+    # Retrieve relevant knowledge from JusBid vector store / local fallback
     try:
         retrieved_docs = retrieve(
             question=search_query,
-            limit=5,
+            limit=2 if flight_intent else 5,
         )
+        if retrieved_docs:
+            hotel_context = "\n\n".join(
+                f"Document: {doc.get('title', 'Knowledge')}\n{doc.get('text', '')}"
+                for doc in retrieved_docs
+            )
+            knowledge_sections.append(hotel_context)
     except Exception as exc:
         print(f"Retrieval error: {exc}")
-        retrieved_docs = []
 
-    if retrieved_docs:
-        knowledge_context = "\n\n".join(
-            f"Document: {doc.get('title', 'Knowledge')}\n{doc.get('text', '')}"
-            for doc in retrieved_docs
-        )
+    if knowledge_sections:
+        knowledge_context = "\n\n".join(knowledge_sections)
     else:
         knowledge_context = (
             "No specific matching knowledge found in the approved documentation."
@@ -102,10 +121,11 @@ async def chat(request: ChatRequest):
     user_lang = detect_user_language(raw_message)
 
     system_prompt = """
-You are a helpful and polite customer support assistant for JusBid.
+You are a helpful, professional, and polite customer support assistant for JusBid.
+JusBid assists travelers with hotel bookings & bidding, as well as verified domestic flights (Mumbai [BOM] ⇄ Bengaluru [BLR]).
 
 Guidelines:
-1. Base business facts, rules, and procedures strictly on the provided knowledge context.
+1. Base business facts, rules, procedures, and flight details strictly on the provided knowledge context.
 2. Never invent unapproved policies, specific fee amounts, refund guarantees, account balances, or transaction statuses.
 3. For conversational follow-ups and support term clarifications (such as asking what "route", "ticket", or a previous step means):
    - Explain clearly in plain, friendly language: "routing" means creating a support ticket or connecting the customer to a human support agent who can assist further.
@@ -113,17 +133,24 @@ Guidelines:
 4. Only escalate (by beginning your response with "ESCALATE:") if:
    - The customer explicitly asks to speak to a person, supervisor, or human support agent.
    - The user requires private account changes, refunds, financial actions, or order status checks that cannot be completed by an automated assistant.
-   - The user asks about a company fee or official policy that is absent from the knowledge base.
+   - The user asks about a company fee or official policy that is completely absent from the knowledge base.
 5. Language Handling (CRITICAL MANDATORY RULE):
    - Determine your response language SOLELY from the latest Customer message below (DO NOT carry over language from prior turns):
      * IF the latest customer message is in ENGLISH -> You MUST respond 100% in ENGLISH. (Even if previous turns in history were in Hindi, switch back to English immediately!)
-     * IF the latest customer message is in HINGLISH or HINDI -> Respond in natural, friendly everyday Hindi (हिन्दी), keeping common technical, product, and UI keywords in English (e.g., Account, Register, Login, Password, OTP, Bid, Requirement, Payment, Refund, Status). Do not use archaic pure-Hindi words.
-6. Recommendations & Options (Provide 3 to 4 Choices):
+     * IF the latest customer message is in HINGLISH or HINDI -> Respond in natural, friendly everyday Hindi (हिन्दी), keeping common technical, product, and UI keywords in English (e.g., Flight, Booking, Fare, Airline, Ticket, Account, Register, Login, Password, OTP, Bid, Requirement, Payment, Refund, Status). Do not use archaic pure-Hindi words.
+6. Hotel Recommendations & Options:
    - When the customer asks for hotel suggestions, options, or recommendations (e.g., in Udaipur or on JusBid), ALWAYS provide at least 3 to 4 of the best distinct choices from the provided knowledge context.
    - For each choice, format as a clean bullet point:
      * **Hotel Name**: Price per night, Star rating (review count), and Location / Area.
-7. If the answer is supported or is a helpful explanation of support steps, respond directly with the answer.
-8. Keep responses concise, warm, and natural for a live chat conversation.
+7. Flight Recommendations & Schedules (BOM ⇄ BLR):
+   - When the customer asks about flights (e.g., "find flight from bom to blr", flight timings, airlines, or cheapest tickets):
+     * You have access to real verified flight data in the context. NEVER state that you only handle hotels or do not have flight information.
+     * Present flight options clearly in markdown:
+       • **Airline** (Flight Code): Departure Time ➔ Arrival Time (Duration) | Fare: ₹Price
+     * Highlight key details such as the lowest starting fare, fastest duration, or morning/evening options based on the user's inquiry.
+     * If the customer asks for all flight data or a complete list, provide the full structured summary of available flights.
+8. If the answer is supported or is a helpful explanation of support steps, respond directly with the answer.
+9. Keep responses concise, warm, and natural for a live chat conversation.
 """
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -160,7 +187,7 @@ Guidelines:
         "model": OPENROUTER_MODEL,
         "messages": messages,
         "temperature": 0.2,
-        "max_tokens": 550,
+        "max_tokens": 900,
     }
 
 

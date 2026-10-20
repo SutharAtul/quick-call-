@@ -43,6 +43,8 @@ app.get("/api/health-ai", async (req, res) => {
 });
 
 const READY_QUESTIONS = [
+    { id: "flights-bom-blr", label: "✈️ Flights (BOM ⇄ BLR)", prompt: "Find flights from BOM to BLR" },
+    { id: "cheapest-flight", label: "💰 Cheapest Flights", prompt: "What are the cheapest flights from Mumbai to Bengaluru?" },
     { id: "hotels-udaipur", label: "Hotels in Udaipur", prompt: "What hotels are available in Udaipur on JusBid?" },
     { id: "create-account", label: "Create Account", prompt: "How do I create an account or sign up on JusBid?" },
     { id: "forgot-password", label: "Forgot Password", prompt: "I forgot my password. What should I do?" },
