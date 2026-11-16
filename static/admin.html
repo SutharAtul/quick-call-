@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JusBid AI Knowledge Base Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --card-hover: #1e293b;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-light: rgba(99, 102, 241, 0.15);
+      --success: #10b981;
+      --success-light: rgba(16, 185, 129, 0.15);
+      --danger: #ef4444;
+      --danger-light: rgba(239, 68, 68, 0.15);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation */
+    .navbar {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .brand-title h1 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #fff;
+    }
+
+    .brand-title p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .status-dot.cache { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+
+    .nav-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      transition: all 0.15s;
+    }
+
+    .nav-btn:hover {
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 28px;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 28px;
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 14px;
+    }
+
+    .card-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-count {
+      background: var(--primary-light);
+      color: #818cf8;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Form Inputs */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    input[type="text"], select, textarea {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13.5px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    /* File Drop Zone */
+    .drop-zone {
+      border: 1.5px dashed #334155;
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+      background: rgba(15, 23, 42, 0.4);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .drop-zone svg {
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .drop-zone p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .drop-zone span {
+      color: #818cf8;
+      font-weight: 600;
+    }
+
+    /* Primary Action Button */
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.45);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Live AI Test Sandbox */
+    .sandbox-box {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 6px;
+    }
+
+    .sandbox-box h3 {
+      font-size: 12.5px;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sandbox-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .sandbox-btn {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sandbox-btn:hover {
+      border-color: var(--primary);
+      color: #818cf8;
+    }
+
+    .sandbox-result {
+      margin-top: 10px;
+      padding: 10px;
+      background: #0b0f19;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      display: none;
+      border: 1px solid #1f2937;
+    }
+
+    /* Right Column: Search & Document Explorer */
+    .explorer-header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11.5px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .filter-pill.active, .filter-pill:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: #818cf8;
+    }
+
+    .doc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      max-height: calc(100vh - 240px);
+      padding-right: 4px;
+    }
+
+    .doc-card {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .doc-card:hover {
+      border-color: #334155;
+      background: #131d31;
+    }
+
+    .doc-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .doc-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .category-badge {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .doc-id-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    .doc-text {
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      background: rgba(11, 15, 25, 0.5);
+      padding: 10px 12px;
+      border-radius: 6px;
+      border-left: 3px solid var(--primary);
+      white-space: pre-wrap;
+    }
+
+    .doc-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-subtle);
+      padding-top: 4px;
+    }
+
+    .vector-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    .btn-delete {
+      background: none;
+      border: none;
+      color: var(--text-subtle);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-delete:hover {
+      color: var(--danger);
+      background: var(--danger-light);
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: white;
+      border: 1px solid var(--card-border);
+      padding: 12px 18px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+
+    /* Spinner */
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <h1>JusBid Knowledge Portal</h1>
+        <p>Live MongoDB Vector Knowledge Management</p>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <div class="status-pill">
+        <span class="status-dot online" id="status-dot"></span>
+        <span id="db-status-text">Checking Database...</span>
+      </div>
+      <a href="/" class="nav-btn" target="_blank" title="Open Main Application">
+        <span>💬 Open Chatbot App</span>
+      </a>
+      <a href="/docs" class="nav-btn" target="_blank" title="FastAPI Swagger Documentation">
+        <span>📖 API Docs</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <main class="container">
+    
+    <!-- LEFT: Upload / Ingest Form -->
+    <section class="card">
+      <div class="card-header">
+        <h2>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add New Knowledge Document
+        </h2>
+      </div>
+
+      <!-- File Upload Dropzone -->
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".txt,.md,.json" style="display: none;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <p>Drop file here or <span>browse</span> (.txt, .md, .json)</p>
+      </div>
+
+      <!-- Form -->
+      <form id="doc-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label for="doc-title">Document Title *</label>
+          <input type="text" id="doc-title" required placeholder="e.g. VIP Concierge Lounge Access & Rules">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="doc-category">Category</label>
+            <select id="doc-category">
+              <option value="auctions">Auctions & Bidding</option>
+              <option value="refunds">Refunds & Cancellations</option>
+              <option value="account">Account & Security</option>
+              <option value="billing">Payment & Billing</option>
+              <option value="fulfillment">Vouchers & Fulfillment</option>
+              <option value="vip">VIP & Luxury Services</option>
+              <option value="policies">General Policies</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="doc-version">Version</label>
+            <input type="text" id="doc-version" value="1.0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between;">
+            <label for="doc-text">Knowledge Text / Policy Details *</label>
+            <span id="char-count" style="font-size: 11px; color: var(--text-subtle);">0 chars</span>
+          </div>
+          <textarea id="doc-text" required placeholder="Paste the verified policy information here. This text will be embedded into vector space so the AI can answer questions about it."></textarea>
+        </div>
+
+        <button type="submit" class="btn-primary" id="btn-save">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+          <span id="btn-text">Vectorize & Save to MongoDB</span>
+        </button>
+      </form>
+
+      <!-- Live Test Sandbox -->
+      <div class="sandbox-box">
+        <h3>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          Instant AI Query Verification Sandbox
+        </h3>
+        <div class="sandbox-input-row">
+          <input type="text" id="sandbox-query" placeholder="Ask a question to test retrieval...">
+          <button class="sandbox-btn" id="btn-test">Test</button>
+        </div>
+        <div class="sandbox-result" id="sandbox-result"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Document Explorer -->
+    <section class="card">
+      <div class="card-header">
+        <h2>
+          <span>Knowledge Documents</span>
+          <span class="badge-count" id="doc-count">0 Documents</span>
+        </h2>
+        <div class="explorer-header">
+          <input type="text" id="search-input" class="search-input" placeholder="Search knowledge by keyword...">
+        </div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="filter-pills" id="filter-pills">
+        <span class="filter-pill active" data-cat="all">All</span>
+        <span class="filter-pill" data-cat="auctions">Auctions</span>
+        <span class="filter-pill" data-cat="refunds">Refunds</span>
+        <span class="filter-pill" data-cat="account">Account</span>
+        <span class="filter-pill" data-cat="billing">Billing</span>
+        <span class="filter-pill" data-cat="fulfillment">Vouchers</span>
+        <span class="filter-pill" data-cat="vip">VIP</span>
+        <span class="filter-pill" data-cat="policies">Policies</span>
+      </div>
+
+      <!-- Document Cards Container -->
+      <div class="doc-list" id="doc-list">
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+          Loading knowledge base records from MongoDB...
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // State
+    let allDocuments = [];
+    let currentCategory = 'all';
+
+    // Elements
+    const docListEl = document.getElementById('doc-list');
+    const docCountEl = document.getElementById('doc-count');
+    const dbStatusTextEl = document.getElementById('db-status-text');
+    const statusDotEl = document.getElementById('status-dot');
+    const docForm = document.getElementById('doc-form');
+    const btnSave = document.getElementById('btn-save');
+    const btnText = document.getElementById('btn-text');
+    const searchInput = document.getElementById('search-input');
+    const filterPills = document.getElementById('filter-pills');
+    const charCountEl = document.getElementById('char-count');
+    const docTextEl = document.getElementById('doc-text');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const toastEl = document.getElementById('toast');
+    const sandboxQueryEl = document.getElementById('sandbox-query');
+    const btnTest = document.getElementById('btn-test');
+    const sandboxResultEl = document.getElementById('sandbox-result');
+
+    // Show Toast
+    function showToast(message, type = 'success') {
+      toastEl.textContent = message;
+      toastEl.className = `toast show ${type}`;
+      setTimeout(() => {
+        toastEl.className = 'toast';
+      }, 3500);
+    }
+
+    // Live character counter
+    docTextEl.addEventListener('input', () => {
+      charCountEl.textContent = `${docTextEl.value.length} chars`;
+    });
+
+    // Check System & DB Health
+    async function checkHealth() {
+      try {
+        const res = await fetch('/health');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.database === 'connected') {
+            dbStatusTextEl.textContent = 'MongoDB Atlas Connected';
+            statusDotEl.className = 'status-dot online';
+          } else {
+            dbStatusTextEl.textContent = 'Operating in Local Cache Mode';
+            statusDotEl.className = 'status-dot cache';
+          }
+        }
+      } catch (_) {
+        dbStatusTextEl.textContent = 'Backend Offline';
+        statusDotEl.className = 'status-dot';
+      }
+    }
+
+    // Load Documents from Backend
+    async function loadDocuments() {
+      try {
+        const res = await fetch('/api/documents');
+        if (!res.ok) throw new Error('Failed to load documents');
+        const data = await res.json();
+        allDocuments = data.documents || [];
+        renderDocuments();
+      } catch (err) {
+        console.error(err);
+        docListEl.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: var(--danger);">
+            ⚠️ Failed to retrieve documents. Please check backend connection.
+          </div>
+        `;
+      }
+    }
+
+    // Render Filtered Documents
+    function renderDocuments() {
+      const query = searchInput.value.toLowerCase().trim();
+      const filtered = allDocuments.filter(doc => {
+        const matchCategory = currentCategory === 'all' || (doc.category || '').toLowerCase() === currentCategory;
+        const matchQuery = !query || 
+          (doc.title || '').toLowerCase().includes(query) || 
+          (doc.text || '').toLowerCase().includes(query) ||
+          (doc.document_id || '').toLowerCase().includes(query);
+        return matchCategory && matchQuery;
+      });
+
+      docCountEl.textContent = `${filtered.length} of ${allDocuments.length} Documents`;
+
+      if (filtered.length === 0) {
+        docListEl.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+            No matching documents found. Add a new document on the left!
+          </div>
+        `;
+        return;
+      }
+
+      docListEl.innerHTML = filtered.map(doc => `
+        <div class="doc-card" id="card-${escapeHTML(doc.id)}">
+          <div class="doc-card-top">
+            <div>
+              <div class="doc-title">
+                ${escapeHTML(doc.title)}
+                <span class="category-badge">${escapeHTML(doc.category || 'General')}</span>
+              </div>
+              <div class="doc-id-pill">ID: ${escapeHTML(doc.document_id || doc.id)} • v${escapeHTML(doc.version || '1.0')}</div>
+            </div>
+            <button class="btn-delete" onclick="deleteDoc('${escapeHTML(doc.id)}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              Delete
+            </button>
+          </div>
+          <div class="doc-text">${escapeHTML(doc.text)}</div>
+          <div class="doc-footer">
+            <span class="vector-status">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              ${doc.has_embedding ? 'Vectorized (text-embedding-3-small)' : 'Raw text (Pending vector)'}
+            </span>
+            <span>MongoDB Synced</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Save & Ingest New Document
+    docForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('doc-title').value.trim();
+      const category = document.getElementById('doc-category').value;
+      const version = document.getElementById('doc-version').value.trim() || '1.0';
+      const text = document.getElementById('doc-text').value.trim();
+
+      if (!title || !text) return;
+
+      btnSave.disabled = true;
+      btnText.innerHTML = `<span class="spinner"></span> Generating AI Vectors & Saving...`;
+
+      try {
+        const res = await fetch('/api/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, category, version, text }),
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        const data = await res.json();
+
+        showToast(`✓ Document "${title}" indexed successfully in MongoDB!`, 'success');
+        docForm.reset();
+        charCountEl.textContent = '0 chars';
+        await loadDocuments();
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to save document. Please check server logs.', 'error');
+      } finally {
+        btnSave.disabled = false;
+        btnText.textContent = 'Vectorize & Save to MongoDB';
+      }
+    });
+
+    // Delete Document
+    window.deleteDoc = async function(docId) {
+      if (!confirm(`Are you sure you want to permanently delete document "${docId}" from MongoDB?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/documents/${encodeURIComponent(docId)}`, {
+          method: 'DELETE',
+        });
+        if (!res.ok) throw new Error('Delete failed');
+        showToast('Document deleted successfully.', 'success');
+        await loadDocuments();
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to delete document.', 'error');
+      }
+    };
+
+    // Category Filter Pills
+    filterPills.addEventListener('click', (e) => {
+      if (e.target.classList.contains('filter-pill')) {
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        e.target.classList.add('active');
+        currentCategory = e.target.getAttribute('data-cat');
+        renderDocuments();
+      }
+    });
+
+    // Search Input
+    searchInput.addEventListener('input', () => {
+      renderDocuments();
+    });
+
+    // File Drag & Drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        handleFile(fileInput.files[0]);
+      }
+    });
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target.result;
+        if (file.name.endsWith('.json')) {
+          try {
+            const parsed = JSON.parse(content);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const first = parsed[0];
+              document.getElementById('doc-title').value = first.title || file.name.replace(/\.[^/.]+$/, "");
+              document.getElementById('doc-text').value = first.text || content;
+              if (first.category) document.getElementById('doc-category').value = first.category;
+            } else {
+              document.getElementById('doc-title').value = parsed.title || file.name.replace(/\.[^/.]+$/, "");
+              document.getElementById('doc-text').value = parsed.text || content;
+              if (parsed.category) document.getElementById('doc-category').value = parsed.category;
+            }
+          } catch (_) {
+            document.getElementById('doc-text').value = content;
+          }
+        } else {
+          // Plain text / markdown
+          document.getElementById('doc-title').value = file.name.replace(/\.[^/.]+$/, "");
+          document.getElementById('doc-text').value = content;
+        }
+        charCountEl.textContent = `${document.getElementById('doc-text').value.length} chars`;
+        showToast(`Loaded file "${file.name}" into form. Review and click Save!`);
+      };
+      reader.readAsText(file);
+    }
+
+    // AI Query Sandbox Test
+    btnTest.addEventListener('click', async () => {
+      const q = sandboxQueryEl.value.trim();
+      if (!q) return;
+
+      btnTest.disabled = true;
+      sandboxResultEl.style.display = 'block';
+      sandboxResultEl.innerHTML = '<span class="spinner"></span> Testing AI RAG retrieval...';
+
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q }),
+        });
+
+        const data = await res.json();
+        const sourcesText = data.sources && data.sources.length > 0
+          ? `<br><br><strong>Matched Sources:</strong> ` + data.sources.map(s => `${escapeHTML(s.title)} (${Math.round((s.score || 0.9)*100)}% match)`).join(', ')
+          : '<br><br><em>(No verified policy matched)</em>';
+
+        sandboxResultEl.innerHTML = `<strong>AI Answer:</strong><br>${escapeHTML(data.answer)}${sourcesText}`;
+      } catch (err) {
+        sandboxResultEl.textContent = 'Error testing query: ' + err.message;
+      } finally {
+        btnTest.disabled = false;
+      }
+    });
+
+    // Helper
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Initialize
+    checkHealth();
+    loadDocuments();
+  </script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import re
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -137,6 +139,13 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=2, max_length=1000)
 
 
+class DocumentCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    category: str = Field(default="general", max_length=50)
+    version: str = Field(default="1.0", max_length=20)
+    text: str = Field(min_length=10, max_length=15000)
+
+
 def embed(text: str) -> Optional[List[float]]:
     """Generates embedding vector for a given query text."""
     try:
@@ -150,21 +159,10 @@ def embed(text: str) -> Optional[List[float]]:
         return None
 
 
-MULTILINGUAL_TOPICS = {
-    "refunds": ["refund", "cancel", "cancellation", "wapas", "paise wapas", "रिफंड", "वापसी", "रद्द", "पैसे वापस"],
-    "account": ["account", "login", "password", "2fa", "otp", "verify", "kyc", "खाता", "पासवर्ड", "लॉगिन", "ओटीपी"],
-    "auctions": ["bid", "bidding", "auction", "reserve", "sniping", "boli", "नीलामी", "बोली", "नियम", "ऑक्शन"],
-    "billing": ["payment", "pay", "card", "bank", "invoice", "receipt", "wire", "पेमेंट", "भुगतान", "बिल", "चालान"],
-    "fulfillment": ["voucher", "claim", "hotel", "resort", "certificate", "redeem", "वाउचर", "होटल", "क्लेम"],
-    "support": ["support", "agent", "call", "human", "concierge", "कॉल", "सपोर्ट", "मदद"],
-}
-
-
 def retrieve_from_candidates(candidates: List[Dict[str, Any]], query_vector: Optional[List[float]], question: str, limit: int = 4):
     """Calculates cosine similarity and keyword relevance to return best matching evidence."""
     matches = []
-    q_lower = question.lower()
-    q_words = set(q_lower.split())
+    q_words = set(question.lower().split())
 
     q_norm = 0.0
     q_vec = None
@@ -189,12 +187,6 @@ def retrieve_from_candidates(candidates: List[Dict[str, Any]], query_vector: Opt
             doc_words = set((item.get("title", "") + " " + item.get("text", "")).lower().split())
             overlap = len(q_words.intersection(doc_words))
             score = 0.2 + min(0.6, overlap * 0.1)
-
-        # Multilingual keyword boost (Hindi, Hinglish, regional terms)
-        cat = item.get("category", "")
-        if cat in MULTILINGUAL_TOPICS:
-            if any(term in q_lower for term in MULTILINGUAL_TOPICS[cat]):
-                score = max(score, 0.48) + 0.10
 
         matches.append({
             "title": item.get("title", "Support Knowledge"),
@@ -246,10 +238,7 @@ def retrieve(question: str, limit: int = 4) -> List[Dict[str, Any]]:
 GREETINGS = {
     "hi", "hello", "hey", "hola", "greetings", "good morning", "good afternoon",
     "good evening", "who are you", "what are you", "what can you do", "help",
-    "how does this work", "how can you help", "how are you", "start",
-    "namaste", "namaskar", "namaskara", "vanakkam", "sat sri akal", "kem cho",
-    "kya haal hai", "kaise ho", "pranam", "aadab", "ram ram", "kemon acho",
-    "नमस्ते", "नमस्कार", "प्रणाम", "வணக்கம்", "నమస్కారం", "নমস্কার", "ਸਤਿ ਸ਼੍ਰੀ ਅਕਾਲ"
+    "how does this work", "how can you help", "how are you", "start"
 }
 
 
@@ -257,89 +246,21 @@ def is_greeting(question: str) -> bool:
     clean = question.lower().strip(" !?.,;:")
     if clean in GREETINGS:
         return True
-    if any(clean.startswith(g + " ") for g in ["hi", "hello", "hey", "namaste", "namaskar", "good morning", "good evening"]):
+    if any(clean.startswith(g + " ") for g in ["hi", "hello", "hey", "good morning", "good evening"]):
         return len(clean.split()) <= 4
     return False
 
 
-def get_greeting_response(question: str) -> str:
-    q = question.lower().strip()
-    is_indic_script = any(ord(c) > 127 for c in q)
-    is_hinglish = any(w in q for w in ["namaste", "namaskar", "kaise", "haal", "kya", "bhai", "aap", "pranam", "karo"])
-
-    if is_indic_script:
-        return (
-            "नमस्ते! 👋 JusBid 24/7 AI सपोर्ट में आपका स्वागत है।\n\n"
-            "मैं आपकी इन विषयों में सहायता कर सकता हूँ:\n"
-            "• **बोली और नीलामी के नियम** (रिजर्व प्राइस, एंटी-स्नाइपिंग)\n"
-            "• **रिफंड और रद्दीकरण नीति** (समय-सीमा, सुरक्षा जमा वापसी)\n"
-            "• **भुगतान और चालान** (कार्ड, डिजिटल वॉलेट, बैंक ट्रांसफर)\n"
-            "• **खाता सुरक्षा और 2FA** (पासवर्ड रीसेट, पहचान सत्यापन)\n"
-            "• **वाउचर क्लेम करना** (जीती गई नीलामी का रिडेम्पशन)\n\n"
-            "आज मैं आपकी क्या सहायता कर सकता हूँ? आप तुरंत विशेषज्ञ से बात करने के लिए **'Quick Call'** पर भी क्लिक कर सकते हैं।"
-        )
-    elif is_hinglish:
-        return (
-            "Namaste! 👋 JusBid 24/7 AI Concierge me aapka swagat hai.\n\n"
-            "Main aapki in topics me madad kar sakta hoon:\n"
-            "• **Bidding & Auction Rules** (reserve prices, anti-sniping)\n"
-            "• **Refunds & Cancellations** (timelines, deposit returns)\n"
-            "• **Payments & Invoicing** (cards, wallets, bank wire)\n"
-            "• **Account Access & 2FA** (password reset, identity verification)\n"
-            "• **Voucher Claiming** (won auctions ko claim karna)\n\n"
-            "Aapki kya madad kar sakta hoon? Aap direct agent se baat karne ke liye **'Quick Call'** bhi click kar sakte hain."
-        )
-    else:
-        return (
-            "Hello! 👋 I'm your 24/7 JusBid AI Support Concierge.\n\n"
-            "I can assist you with:\n"
-            "• **Bidding & Auction Rules** (reserve prices, anti-sniping)\n"
-            "• **Refunds & Cancellations** (timelines, deposit releases)\n"
-            "• **Payments & Invoicing** (cards, wallets, bank wire)\n"
-            "• **Account Access & 2FA** (password reset, identity verification)\n"
-            "• **Voucher Claiming** (redeeming your won auctions)\n\n"
-            "How may I assist you today? You can also click **'Quick Call'** anytime for immediate human concierge support."
-        )
-
-
-def get_unmatched_response(question: str) -> str:
-    q = question.lower().strip()
-    is_indic_script = any(ord(c) > 127 for c in q)
-    is_hinglish = any(w in q for w in ["kya", "hai", "kaise", "karo", "mujhe", "batao", "aap", "hum", "chahiye", "nahi", "bhai", "kaha", "kab"])
-
-    if is_indic_script:
-        return (
-            "क्षमा करें, मैं इस विषय में आपकी सहायता नहीं कर सकता क्योंकि यह हमारी आधिकारिक नीतियों के बाहर है।\n\n"
-            "मैं केवल इन विषयों में आपकी सहायता कर सकता हूँ:\n"
-            "• **नीलामी के नियम और बोली गाइड**\n"
-            "• **रिफंड और रद्दीकरण नीति**\n"
-            "• **खाता सुरक्षा और 2FA**\n"
-            "• **भुगतान विधियां और इनवॉइस**\n"
-            "• **वाउचर रिडेम्पशन और क्लेम**\n\n"
-            "कृपया इन विषयों से संबंधित प्रश्न पूछें, या हमारे विशेषज्ञ से बात करने के लिए **'Quick Call'** पर क्लिक करें।"
-        )
-    elif is_hinglish:
-        return (
-            "Sorry, main isme aapki madad nahi kar sakta kyunki yeh hamari approved policies ke bahar hai.\n\n"
-            "Main sirf in topics me madad kar sakta hoon:\n"
-            "• **Bidding & Auction Rules** (reserve prices, anti-sniping)\n"
-            "• **Refund & Cancellation Policy** (timelines, deposit returns)\n"
-            "• **Account Access & Security** (password reset, 2FA)\n"
-            "• **Payment Methods & Invoicing** (cards, bank wire, receipts)\n"
-            "• **Fulfillment & Vouchers** (won auctions ko claim karna)\n\n"
-            "Kripya in topics se related sawal puchein, ya live support ke liye **'Quick Call'** par click karein."
-        )
-    else:
-        return (
-            "Sorry, I can't help with that as it is outside our verified support policies.\n\n"
-            "I can only help with:\n"
-            "• **Bidding & Auction Rules** (reserve prices, bid increments, anti-sniping protection)\n"
-            "• **Refund & Cancellation Policy** (eligibility, cancellation windows, deposit returns)\n"
-            "• **Account Access & Security** (password reset, 2FA, identity verification)\n"
-            "• **Payment Methods & Invoicing** (accepted cards, bank wire transfers, receipts)\n"
-            "• **Fulfillment & Vouchers** (claiming certificates, redeeming won auctions)\n\n"
-            "Please ask a question related to these topics, or click **'Quick Call'** to connect directly with a support specialist."
-        )
+UNMATCHED_MESSAGE = (
+    "Sorry, I can't help with that as it is outside our verified support policies.\n\n"
+    "I can only help with:\n"
+    "• **Bidding & Auction Rules** (reserve prices, bid increments, anti-sniping protection)\n"
+    "• **Refund & Cancellation Policy** (eligibility, cancellation windows, deposit returns)\n"
+    "• **Account Access & Security** (password reset, 2FA, identity verification)\n"
+    "• **Payment Methods & Invoicing** (accepted cards, bank wire transfers, receipts)\n"
+    "• **Fulfillment & Vouchers** (claiming certificates, redeeming won auctions)\n\n"
+    "Please ask a question related to these topics, or click **'Quick Call'** to connect directly with a support specialist."
+)
 
 
 def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -347,7 +268,16 @@ def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, 
     # Friendly greeting / capability check
     if is_greeting(question):
         return {
-            "answer": get_greeting_response(question),
+            "answer": (
+                "Hello! 👋 I'm your 24/7 JusBid AI Support Concierge.\n\n"
+                "I can assist you with:\n"
+                "• **Bidding & Auction Rules** (reserve prices, anti-sniping)\n"
+                "• **Refunds & Cancellations** (timelines, deposit releases)\n"
+                "• **Payments & Invoicing** (cards, wallets, bank wire)\n"
+                "• **Account Access & 2FA** (password reset, identity verification)\n"
+                "• **Voucher Claiming** (redeeming your won auctions)\n\n"
+                "How may I assist you today? You can also click **'Quick Call'** anytime for immediate human concierge support."
+            ),
             "sources": [],
             "escalation_recommended": False,
         }
@@ -355,7 +285,7 @@ def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, 
     # If no evidence or top evidence score is too weak
     if not evidence or (evidence and evidence[0].get("score", 0) < 0.40):
         return {
-            "answer": get_unmatched_response(question),
+            "answer": UNMATCHED_MESSAGE,
             "sources": [],
             "escalation_recommended": False,
         }
@@ -370,17 +300,17 @@ def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, 
     system_prompt = (
         "You are the official 24/7 AI Customer Support Concierge for JusBid, a luxury auction and bidding platform.\n"
         "Your goal is to answer customer questions accurately, politely, and clearly based ONLY on the provided verified support knowledge excerpts.\n\n"
-        "LANGUAGE & SCRIPT MATCHING MANDATE:\n"
-        "- Detect the language and script of the customer's question, and respond in the EXACT SAME language and script.\n"
-        "- If the user asks in Hindi (e.g. 'मुझे रिफंड कैसे मिलेगा?'), reply in natural, fluent Hindi in Devanagari script.\n"
-        "- If the user asks in Hinglish (e.g. 'refund kaise milega?', 'bidding rules kya hain?'), reply in natural, conversational Hinglish (Roman script).\n"
-        "- If the user asks in any other Indian regional language (Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Punjabi, Malayalam, etc.), reply fluently in that language.\n"
-        "- If the user asks in English, reply in English.\n"
-        "- Never force English if the customer asked in an Indian language or Hinglish.\n"
-        "- Keep the response concise, polite, warm, and helpful.\n\n"
         "CRITICAL RULES:\n"
         "1. Check if the provided excerpts actually answer the customer's question.\n"
-        "2. If the user's query is NOT addressed by the excerpts or asks for unrelated advice, DO NOT provide unrelated information from the excerpts. Instead, reply strictly in their language that you can only assist with Bidding, Refunds, Account Security, Payments, and Vouchers, or they can click Quick Call.\n"
+        "2. If the user's query is NOT addressed by the excerpts or asks for unrelated advice, DO NOT provide unrelated information from the excerpts. Instead, reply strictly with:\n"
+        "'Sorry, I can't help with that as it is outside our verified support policies.\n\n"
+        "I can only help with:\n"
+        "• Bidding & Auction Rules (reserve prices, bid increments, anti-sniping protection)\n"
+        "• Refund & Cancellation Policy (eligibility, cancellation windows, deposit returns)\n"
+        "• Account Access & Security (password reset, 2FA, identity verification)\n"
+        "• Payment Methods & Invoicing (accepted cards, bank wire transfers, receipts)\n"
+        "• Fulfillment & Vouchers (claiming certificates, redeeming won auctions)\n\n"
+        "Please ask a question related to these topics, or click Quick Call to speak directly with our concierge support team.'\n"
         "3. Never invent policies, deadlines, rates, or guarantees not stated in the sources.\n"
         "4. Emphasize account security: remind users never to share passwords or verification OTPs.\n"
         "5. Be concise, professional, warm, and helpful. Use clean bullet points where appropriate.\n"
@@ -400,7 +330,7 @@ def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, 
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=120,
+            max_tokens=220,
             temperature=0.2,
         )
         answer_text = response.choices[0].message.content.strip()
@@ -415,19 +345,13 @@ def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, 
             )
         else:
             return {
-                "answer": get_unmatched_response(question),
+                "answer": UNMATCHED_MESSAGE,
                 "sources": [],
                 "escalation_recommended": False,
             }
 
     # If the answer indicates it cannot help, don't show irrelevant sources
-    answer_lower = answer_text.lower()
-    if (
-        "sorry, i can't help" in answer_lower
-        or "क्षमा करें" in answer_lower
-        or "maaf kijiye" in answer_lower
-        or "madad nahi kar sakta" in answer_lower
-    ):
+    if "sorry, i can't help" in answer_text.lower():
         return {
             "answer": answer_text,
             "sources": [],
@@ -495,6 +419,164 @@ def chat(request: ChatRequest):
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/api/documents")
+def list_documents():
+    """Returns all knowledge base documents from MongoDB or in-memory cache."""
+    docs = []
+    if mongo_collection is not None:
+        try:
+            raw_docs = list(
+                mongo_collection.find(
+                    {},
+                    {
+                        "_id": 1,
+                        "document_id": 1,
+                        "title": 1,
+                        "category": 1,
+                        "version": 1,
+                        "text": 1,
+                        "approved": 1,
+                        "embedding": 1,
+                    },
+                )
+            )
+            for d in raw_docs:
+                docs.append({
+                    "id": str(d.get("_id", d.get("document_id", ""))),
+                    "document_id": d.get("document_id", ""),
+                    "title": d.get("title", "Untitled Document"),
+                    "category": d.get("category", "general"),
+                    "version": d.get("version", "1.0"),
+                    "approved": d.get("approved", True),
+                    "text": d.get("text", ""),
+                    "has_embedding": bool(d.get("embedding")),
+                })
+            return {"status": "ok", "source": "mongodb", "count": len(docs), "documents": docs}
+        except Exception as e:
+            logger.warning("Failed to fetch documents from MongoDB: %s", e)
+
+    # Fallback to in-memory knowledge store
+    for d in memory_knowledge:
+        docs.append({
+            "id": str(d.get("_id", d.get("document_id", ""))),
+            "document_id": d.get("document_id", ""),
+            "title": d.get("title", "Untitled Document"),
+            "category": d.get("category", "general"),
+            "version": d.get("version", "1.0"),
+            "approved": d.get("approved", True),
+            "text": d.get("text", ""),
+            "has_embedding": bool(d.get("embedding")),
+        })
+    return {"status": "ok", "source": "local_cache", "count": len(docs), "documents": docs}
+
+
+@app.post("/api/documents")
+def create_or_update_document(doc_in: DocumentCreate):
+    """Indexes a new document into MongoDB and local memory with AI vector embeddings."""
+    global memory_knowledge
+
+    # Generate document slug ID
+    slug = re.sub(r"[^a-z0-9]+", "-", doc_in.title.lower()).strip("-")[:40] or "doc"
+    doc_id = f"{slug}-{int(time.time())}"
+    chunk_id = f"{doc_id}-0"
+
+    # Compute embedding
+    vector = embed(doc_in.text)
+
+    record = {
+        "_id": chunk_id,
+        "document_id": doc_id,
+        "title": doc_in.title.strip(),
+        "category": doc_in.category.strip().lower(),
+        "version": doc_in.version.strip(),
+        "approved": True,
+        "text": doc_in.text.strip(),
+        "chunk_index": 0,
+        "embedding_model": EMBED_MODEL,
+        "embedding": vector,
+    }
+
+    # 1. Save to MongoDB Atlas
+    mongo_saved = False
+    if mongo_collection is not None:
+        try:
+            mongo_collection.replace_one({"_id": chunk_id}, record, upsert=True)
+            mongo_saved = True
+            logger.info("Document '%s' successfully indexed in MongoDB Atlas.", doc_in.title)
+        except Exception as e:
+            logger.error("Failed to write document to MongoDB: %s", e)
+
+    # 2. Update memory knowledge cache
+    memory_knowledge = [d for d in memory_knowledge if d.get("_id") != chunk_id and d.get("document_id") != doc_id]
+    memory_knowledge.append(record)
+
+    # 3. Persist to local cache file
+    try:
+        LOCAL_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        LOCAL_CACHE_PATH.write_text(json.dumps(memory_knowledge, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Failed to persist updated cache to disk: %s", e)
+
+    return {
+        "status": "success",
+        "message": f"Document '{doc_in.title}' indexed successfully.",
+        "database_updated": mongo_saved,
+        "has_embedding": bool(vector),
+        "document": {
+            "id": chunk_id,
+            "document_id": doc_id,
+            "title": record["title"],
+            "category": record["category"],
+            "version": record["version"],
+            "text": record["text"][:100] + "..." if len(record["text"]) > 100 else record["text"],
+            "has_embedding": bool(vector),
+        },
+    }
+
+
+@app.delete("/api/documents/{doc_id}")
+def delete_document(doc_id: str):
+    """Deletes a document from MongoDB and local memory cache."""
+    global memory_knowledge
+    mongo_deleted = False
+
+    if mongo_collection is not None:
+        try:
+            res = mongo_collection.delete_many({"$or": [{"_id": doc_id}, {"document_id": doc_id}]})
+            mongo_deleted = res.deleted_count > 0
+            logger.info("Document '%s' removed from MongoDB. Deleted count: %d", doc_id, res.deleted_count)
+        except Exception as e:
+            logger.error("Failed to delete document from MongoDB: %s", e)
+
+    orig_count = len(memory_knowledge)
+    memory_knowledge = [d for d in memory_knowledge if d.get("_id") != doc_id and d.get("document_id") != doc_id]
+
+    try:
+        LOCAL_CACHE_PATH.write_text(json.dumps(memory_knowledge, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Failed to save cache after document deletion: %s", e)
+
+    return {
+        "status": "success",
+        "message": f"Document '{doc_id}' deleted successfully.",
+        "mongo_deleted": mongo_deleted,
+        "cache_deleted": orig_count > len(memory_knowledge),
+    }
+
+
+@app.get("/admin")
+@app.get("/portal")
+def serve_admin():
+    admin_file = os.path.join(STATIC_DIR, "admin.html")
+    if os.path.isfile(admin_file):
+        return FileResponse(admin_file)
+    return {
+        "status": "ok",
+        "service": "JusBid Knowledge Portal",
+        "info": "Admin portal will be served once static/admin.html is created.",
+    }
 
 
 @app.get("/")

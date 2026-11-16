@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JusBid — Live Bidding Platform & Quick Support</title>
+  <meta name="description" content="JusBid smart live bidding and auction platform with integrated 24/7 AI concierge and support bot.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Ambient Gradient Background Elements -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- App Header / Navbar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="url(#logo-grad)" fill="url(#logo-grad-fill)"/>
+            <defs>
+              <linearGradient id="logo-grad" x1="3" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#818cf8"/>
+                <stop offset="1" stop-color="#06b6d4"/>
+              </linearGradient>
+              <linearGradient id="logo-grad-fill" x1="3" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#818cf8" stop-opacity="0.3"/>
+                <stop offset="1" stop-color="#06b6d4" stop-opacity="0.2"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="brand-name">JusBid<span class="brand-accent">.ai</span></span>
+        </div>
+        <div class="status-pill" id="backend-status-pill">
+          <span class="status-dot online"></span>
+          <span class="status-text" id="backend-status-text">RAG Bot Active</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="#auctions" class="nav-link active">Live Auctions</a>
+        <a href="#activity" class="nav-link">My Bids</a>
+        <a href="#knowledge" class="nav-link">Support & Policies</a>
+        <a href="/admin" class="nav-link" title="Open AI Knowledge Management Portal">Manage Knowledge</a>
+        <button class="nav-link ghost-btn" id="trigger-quickcall-nav">Quick Call</button>
+      </nav>
+
+      <div class="header-actions">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" placeholder="Search auctions or policies..." id="global-search-input">
+        </div>
+
+        <button class="btn btn-outline" id="header-ask-bot-btn" title="Open AI Support Bot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Ask AI Bot</span>
+        </button>
+
+        <div class="user-profile-badge">
+          <div class="user-avatar">AM</div>
+          <div class="user-meta">
+            <span class="user-name">Alex Morgan</span>
+            <span class="user-tier">Platinum Tier</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-main">
+    <!-- Hero / Welcome Banner -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="badge-sparkle">✨</span>
+          <span>Verified RAG-Powered Auction Concierge</span>
+        </div>
+        <h1 class="hero-title">
+          Live Bidding & Instant Support <span class="text-gradient">in Real Time.</span>
+        </h1>
+        <p class="hero-subtitle">
+          Place smart bids on premium destinations, luxury stays, and exclusive experiences. Have questions regarding bidding rules, refunds, or account verification? Our bottom-right AI Assistant is always available.
+        </p>
+
+        <div class="hero-cta-group">
+          <a href="#auctions" class="btn btn-primary">
+            <span>Browse Live Auctions</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+          <button class="btn btn-glass" id="hero-open-bot-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span>Ask Support Bot</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon-wrap violet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-label">Active Bids</span>
+            <div class="metric-value-row">
+              <span class="metric-value">$4,850</span>
+              <span class="metric-tag success">3 Active</span>
+            </div>
+            <span class="metric-subtext">Highest bid on Marina Bay</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon-wrap cyan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-label">Total Saved</span>
+            <div class="metric-value-row">
+              <span class="metric-value">$1,420</span>
+              <span class="metric-tag highlight">-28% Avg</span>
+            </div>
+            <span class="metric-subtext">Across 12 won auctions</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon-wrap emerald">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-label">AI Knowledge Base</span>
+            <div class="metric-value-row">
+              <span class="metric-value">Verified</span>
+              <span class="metric-tag online">MongoDB</span>
+            </div>
+            <span class="metric-subtext">Zero hallucinations policy</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon-wrap amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-label">Bot Response Time</span>
+            <div class="metric-value-row">
+              <span class="metric-value">&lt; 1.1s</span>
+              <span class="metric-tag speed">Ultra-fast</span>
+            </div>
+            <span class="metric-subtext">Instant answer retrieval</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live Auctions Section -->
+    <section class="content-section" id="auctions">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🔥 Featured Live Auctions</h2>
+          <p class="section-subtitle">Real-time bidding on verified premium packages. Place a bid or inquire with our bot.</p>
+        </div>
+        <div class="section-controls">
+          <button class="filter-chip active" data-filter="all">All Deals</button>
+          <button class="filter-chip" data-filter="suites">Luxury Suites</button>
+          <button class="filter-chip" data-filter="villas">Resorts & Villas</button>
+          <button class="filter-chip" data-filter="yachts">Experiences</button>
+        </div>
+      </div>
+
+      <div class="auctions-grid">
+        <!-- Auction Card 1 -->
+        <article class="auction-card" data-category="suites">
+          <div class="auction-badge-stack">
+            <span class="badge danger">CLOSING SOON</span>
+            <span class="badge glass">14 Bids</span>
+          </div>
+          <div class="card-visual visual-suite">
+            <div class="visual-overlay"></div>
+            <div class="visual-icon">🏙️</div>
+          </div>
+          <div class="card-body">
+            <div class="card-meta">
+              <span class="location-tag">Singapore • Marina Bay</span>
+              <div class="timer-badge" data-time="245">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span class="timer-countdown">04m 05s</span>
+              </div>
+            </div>
+            <h3 class="card-title">Sky Horizon Penthouse Suite</h3>
+            <p class="card-desc">3 nights panoramic luxury stay including club lounge access, rooftop pool privileges, and private transfers.</p>
+            
+            <div class="bid-status-box">
+              <div class="bid-current">
+                <span class="bid-label">Current High Bid</span>
+                <span class="bid-amount" id="bid-val-1">$780</span>
+              </div>
+              <div class="bid-reserve">
+                <span class="reserve-badge met">Reserve Met ✓</span>
+                <span class="min-increment">Min increment: +$25</span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <button class="btn btn-primary place-bid-btn" data-id="1" data-title="Sky Horizon Penthouse Suite" data-current="780">
+                Place Fast Bid
+              </button>
+              <button class="btn btn-icon-glass ask-bot-item-btn" data-query="How does bidding work for the Marina Bay Penthouse auction?" title="Ask AI about this auction">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Auction Card 2 -->
+        <article class="auction-card" data-category="villas">
+          <div class="auction-badge-stack">
+            <span class="badge featured">FEATURED DEAL</span>
+            <span class="badge glass">9 Bids</span>
+          </div>
+          <div class="card-visual visual-chalet">
+            <div class="visual-overlay"></div>
+            <div class="visual-icon">🏔️</div>
+          </div>
+          <div class="card-body">
+            <div class="card-meta">
+              <span class="location-tag">Switzerland • Zermatt</span>
+              <div class="timer-badge" data-time="1120">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span class="timer-countdown">18m 40s</span>
+              </div>
+            </div>
+            <h3 class="card-title">Matterhorn Alpine Glass Chalet</h3>
+            <p class="card-desc">4 nights starlit chalet with private cedar hot tub, ski-in/ski-out entry, and personal fireside chef dinner.</p>
+            
+            <div class="bid-status-box">
+              <div class="bid-current">
+                <span class="bid-label">Current High Bid</span>
+                <span class="bid-amount" id="bid-val-2">$1,250</span>
+              </div>
+              <div class="bid-reserve">
+                <span class="reserve-badge met">Reserve Met ✓</span>
+                <span class="min-increment">Min increment: +$50</span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <button class="btn btn-primary place-bid-btn" data-id="2" data-title="Matterhorn Alpine Glass Chalet" data-current="1250">
+                Place Fast Bid
+              </button>
+              <button class="btn btn-icon-glass ask-bot-item-btn" data-query="What is the refund policy for the Matterhorn Chalet auction?" title="Ask AI about refund policy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Auction Card 3 -->
+        <article class="auction-card" data-category="yachts">
+          <div class="auction-badge-stack">
+            <span class="badge violet">VIP EXPERIENCE</span>
+            <span class="badge glass">21 Bids</span>
+          </div>
+          <div class="card-visual visual-yacht">
+            <div class="visual-overlay"></div>
+            <div class="visual-icon">🛥️</div>
+          </div>
+          <div class="card-body">
+            <div class="card-meta">
+              <span class="location-tag">French Riviera • Monaco</span>
+              <div class="timer-badge" data-time="2780">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span class="timer-countdown">46m 20s</span>
+              </div>
+            </div>
+            <h3 class="card-title">Azure Coast 80ft Catamaran Charter</h3>
+            <p class="card-desc">Full weekend private Mediterranean cruise with captain, steward, jet-skis, and sunset champagne catering.</p>
+            
+            <div class="bid-status-box">
+              <div class="bid-current">
+                <span class="bid-label">Current High Bid</span>
+                <span class="bid-amount" id="bid-val-3">$2,100</span>
+              </div>
+              <div class="bid-reserve">
+                <span class="reserve-badge met">Reserve Met ✓</span>
+                <span class="min-increment">Min increment: +$100</span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <button class="btn btn-primary place-bid-btn" data-id="3" data-title="Azure Coast Catamaran Charter" data-current="2100">
+                Place Fast Bid
+              </button>
+              <button class="btn btn-icon-glass ask-bot-item-btn" data-query="How do auction rules apply if two people place the same bid?" title="Ask AI about bidding rules">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Support Center & Knowledge Base Cards -->
+    <section class="content-section" id="knowledge">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">📚 Official Support Knowledge Base</h2>
+          <p class="section-subtitle">Trained on verified JusBid policy documents. Click any card to launch the AI Bot with the question pre-loaded.</p>
+        </div>
+      </div>
+
+      <div class="knowledge-grid">
+        <div class="knowledge-card" data-prompt="What is the refund policy?">
+          <div class="knowledge-header">
+            <span class="knowledge-icon">💳</span>
+            <span class="doc-badge">Document: refund-policy-v1</span>
+          </div>
+          <h3 class="knowledge-title">Refund & Cancellation Policy</h3>
+          <p class="knowledge-snippet">Full refunds for host cancellations, 48-hour cancellation windows, and 3-5 day deposit refund turnaround times.</p>
+          <button class="btn btn-card-ask">
+            <span>Ask Bot: "What is the refund policy?"</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="knowledge-card" data-prompt="How do auction rules and bidding work?">
+          <div class="knowledge-header">
+            <span class="knowledge-icon">🔨</span>
+            <span class="doc-badge">Document: auction-support-v1</span>
+          </div>
+          <h3 class="knowledge-title">Auction Rules & Bidding Guide</h3>
+          <p class="knowledge-snippet">Official guidance on bidding increments, reserve prices, and anti-sniping 2-minute timer extensions.</p>
+          <button class="btn btn-card-ask">
+            <span>Ask Bot: "How do auction rules work?"</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="knowledge-card" data-prompt="How do I recover my account, and should I share my password?">
+          <div class="knowledge-header">
+            <span class="knowledge-icon">🔒</span>
+            <span class="doc-badge">Document: account-support-v1</span>
+          </div>
+          <h3 class="knowledge-title">Account Security & Access</h3>
+          <p class="knowledge-snippet">Account recovery, 2FA setup, KYC rules over $5,000, and zero-password/OTP sharing safety policy.</p>
+          <button class="btn btn-card-ask">
+            <span>Ask Bot: "How do I recover my account?"</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="knowledge-card" data-prompt="What payment methods are accepted and how do I get an invoice?">
+          <div class="knowledge-header">
+            <span class="knowledge-icon">💰</span>
+            <span class="doc-badge">Document: payment-billing-v1</span>
+          </div>
+          <h3 class="knowledge-title">Payment Methods & Invoicing</h3>
+          <p class="knowledge-snippet">Credit cards, Apple Pay, Google Pay, wire transfers over $10k, and 256-bit encrypted tax invoices.</p>
+          <button class="btn btn-card-ask">
+            <span>Ask Bot: "What payment methods are accepted?"</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="knowledge-card" data-prompt="How do I claim my won auction voucher and redeem travel dates?">
+          <div class="knowledge-header">
+            <span class="knowledge-icon">🎁</span>
+            <span class="doc-badge">Document: fulfillment-v1</span>
+          </div>
+          <h3 class="knowledge-title">Fulfillment & Voucher Claiming</h3>
+          <p class="knowledge-snippet">Digital certificate delivery within 10 minutes, 12-month voucher validity, and gift transfers to guests.</p>
+          <button class="btn btn-card-ask">
+            <span>Ask Bot: "How do I claim my won voucher?"</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="knowledge-card" data-prompt="How do I escalate to a human agent or request a Quick Call?">
+          <div class="knowledge-header">
+            <span class="knowledge-icon">⚡</span>
+            <span class="doc-badge">Document: escalation-v1</span>
+          </div>
+          <h3 class="knowledge-title">Support Escalation & Quick Call</h3>
+          <p class="knowledge-snippet">Instant callback within 2 minutes via Quick Call, 24/7 priority support helpline, and dispute resolution.</p>
+          <button class="btn btn-card-ask">
+            <span>Ask Bot: "How do I contact human support?"</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Activity Table -->
+    <section class="content-section" id="activity">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">⏱️ Your Recent Bidding Activity</h2>
+          <p class="section-subtitle">Track your bids, winning status, and auction confirmations.</p>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="activity-table">
+          <thead>
+            <tr>
+              <th>Auction Item</th>
+              <th>Date / Time</th>
+              <th>Your Max Bid</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="item-cell">
+                  <span class="cell-icon">🏙️</span>
+                  <div>
+                    <strong>Sky Horizon Penthouse Suite</strong>
+                    <span class="cell-sub">Singapore • ID #SG-8841</span>
+                  </div>
+                </div>
+              </td>
+              <td>Today, 03:42 PM</td>
+              <td>$780.00</td>
+              <td><span class="badge success">Winning (Highest)</span></td>
+              <td><button class="btn btn-sm btn-outline check-bid-btn" data-item="Sky Horizon Penthouse">Check Status</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="item-cell">
+                  <span class="cell-icon">🏖️</span>
+                  <div>
+                    <strong>Maldives Overwater Bungalow</strong>
+                    <span class="cell-sub">Male Atoll • ID #MV-2091</span>
+                  </div>
+                </div>
+              </td>
+              <td>Yesterday</td>
+              <td>$1,850.00</td>
+              <td><span class="badge warning">Outbid by $50</span></td>
+              <td><button class="btn btn-sm btn-primary raise-bid-btn" data-item="Maldives Overwater Bungalow">Raise Bid</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="item-cell">
+                  <span class="cell-icon">🏎️</span>
+                  <div>
+                    <strong>Monaco Grand Prix VIP Terrace</strong>
+                    <span class="cell-sub">Monte Carlo • ID #MC-1102</span>
+                  </div>
+                </div>
+              </td>
+              <td>Oct 10, 2026</td>
+              <td>$2,200.00</td>
+              <td><span class="badge highlight">Auction Won 🎉</span></td>
+              <td><button class="btn btn-sm btn-glass view-voucher-btn">View Voucher</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Quick Call Voice Support Modal -->
+  <div class="modal-backdrop" id="quickcall-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">📞</span>
+          <div>
+            <h3 class="modal-title">Request JusBid Quick Call</h3>
+            <p class="modal-subtitle">Connect with a live auction concierge in under 60 seconds.</p>
+          </div>
+        </div>
+        <button class="btn-close-modal" id="close-quickcall-btn">&times;</button>
+      </div>
+      <form id="quickcall-form" class="modal-body">
+        <div class="form-group">
+          <label for="call-name">Your Full Name</label>
+          <input type="text" id="call-name" value="Alex Morgan" required>
+        </div>
+        <div class="form-group">
+          <label for="call-phone">Phone Number</label>
+          <input type="tel" id="call-phone" placeholder="+1 (555) 019-2834" value="+1 (555) 438-9201" required>
+        </div>
+        <div class="form-group">
+          <label for="call-topic">Topic / Auction Reference</label>
+          <select id="call-topic">
+            <option value="auction-inquiry">Active Bid Assistance</option>
+            <option value="refund-claim">Refund & Cancellation Inquiry</option>
+            <option value="account-help">Account Security or Recovery</option>
+            <option value="general">VIP Concierge Booking</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">
+          <span>Start Instant Callback</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bid Placement Modal -->
+  <div class="modal-backdrop" id="bid-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">🔨</span>
+          <div>
+            <h3 class="modal-title" id="bid-modal-title">Place Your Bid</h3>
+            <p class="modal-subtitle" id="bid-modal-subtitle">Confirm your new highest bid amount.</p>
+          </div>
+        </div>
+        <button class="btn-close-modal" id="close-bid-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="bid-modal-price-display">
+          <span class="price-sub">New Bid Amount:</span>
+          <span class="price-big" id="bid-modal-amount">$805.00</span>
+        </div>
+        <div class="quick-inc-buttons">
+          <button class="inc-btn" data-add="25">+$25</button>
+          <button class="inc-btn" data-add="50">+$50</button>
+          <button class="inc-btn" data-add="100">+$100</button>
+          <button class="inc-btn" data-add="250">+$250</button>
+        </div>
+        <button class="btn btn-primary btn-block" id="confirm-bid-btn">
+          <span>Confirm & Submit Bid</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- FLOATING BOT IN BOTTOM RIGHT CORNER (WIDGET LAUNCHER & CHAT WINDOW)       -->
+  <!-- ========================================================================= -->
+
+  <div class="floating-bot-container" id="floating-bot-container">
+    <!-- Collapsed Floating Launcher Pill & Button -->
+    <div class="bot-launcher-wrapper" id="bot-launcher-wrapper">
+      <!-- Unread Attention Banner / Tooltip -->
+      <div class="bot-launcher-tooltip" id="bot-launcher-tooltip">
+        <span class="tooltip-wave">👋</span>
+        <span class="tooltip-text">Need help with bids or refunds? Ask JusBid AI!</span>
+        <button class="tooltip-dismiss" id="tooltip-dismiss-btn" title="Dismiss">&times;</button>
+      </div>
+
+      <!-- Main Floating Circle Button -->
+      <button class="bot-floating-btn" id="bot-toggle-btn" aria-label="Open JusBid AI Support Bot" title="Open Support Bot">
+        <div class="btn-pulse-ring"></div>
+        <div class="bot-icon-circle">
+          <!-- Bot Avatar Icon -->
+          <svg class="bot-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+            <line x1="8" y1="16" x2="8.01" y2="16"></line>
+            <line x1="16" y1="16" x2="16.01" y2="16"></line>
+          </svg>
+        </div>
+        <span class="bot-unread-badge" id="bot-unread-badge">1</span>
+      </button>
+    </div>
+
+    <!-- Expanded Chat Window Modal -->
+    <div class="bot-chat-window" id="bot-chat-window" role="dialog" aria-label="JusBid AI Support Assistant" style="display: none;">
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="chat-bot-profile">
+          <div class="chat-avatar-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+              <circle cx="12" cy="5" r="2"></circle>
+              <path d="M12 7v4"></path>
+              <line x1="8" y1="16" x2="8.01" y2="16"></line>
+              <line x1="16" y1="16" x2="16.01" y2="16"></line>
+            </svg>
+            <span class="avatar-online-dot"></span>
+          </div>
+          <div class="chat-title-group">
+            <div class="chat-title-row">
+              <span class="chat-bot-name">JusBid AI Assistant</span>
+              <span class="chat-badge-rag">RAG 2.0</span>
+            </div>
+            <span class="chat-bot-status" id="chat-connection-status">Online • Approved Knowledge Base</span>
+          </div>
+        </div>
+
+        <div class="chat-header-actions">
+          <button class="chat-btn-icon" id="bot-sound-toggle" title="Toggle Sound Chimes">
+            <svg id="sound-icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <svg id="sound-icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+          </button>
+          <button class="chat-btn-icon" id="bot-clear-chat" title="Clear Chat History">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+          <button class="chat-btn-icon" id="bot-minimize-btn" title="Minimize Chat Window">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Suggestion Pill Drawer -->
+      <div class="chat-suggestions-container" id="chat-suggestions-container">
+        <span class="suggestions-label">Suggested questions:</span>
+        <div class="suggestions-scroll">
+          <button class="chip-suggestion" data-text="What is the refund policy?">
+            💳 Refund Policy
+          </button>
+          <button class="chip-suggestion" data-text="How do auction rules and bidding work?">
+            🔨 Auction Rules
+          </button>
+          <button class="chip-suggestion" data-text="How do I recover my account, and should I share my password?">
+            🔒 Account Recovery
+          </button>
+          <button class="chip-suggestion" data-text="What payment methods are accepted and how do I get an invoice?">
+            💰 Payment & Invoices
+          </button>
+          <button class="chip-suggestion" data-text="How do I claim my won auction voucher and redeem travel dates?">
+            🎁 Voucher Redemption
+          </button>
+          <button class="chip-suggestion" data-text="How do I escalate to a human agent or request a Quick Call?">
+            ⚡ Quick Call Concierge
+          </button>
+        </div>
+      </div>
+
+      <!-- Chat Messages Container -->
+      <div class="chat-messages-container" id="chat-messages-container">
+        <!-- Initial Welcome Message from Bot -->
+        <div class="chat-message bot-msg">
+          <div class="msg-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+              <circle cx="12" cy="5" r="2"></circle>
+              <line x1="8" y1="16" x2="8.01" y2="16"></line>
+              <line x1="16" y1="16" x2="16.01" y2="16"></line>
+            </svg>
+          </div>
+          <div class="msg-content-wrapper">
+            <div class="msg-bubble">
+              <p>Hello Alex! 👋 I'm your JusBid support assistant. I can answer questions about bidding policies, auction rules, account safety, and refunds backed by verified documentation.</p>
+              <p>How may I assist your bidding today?</p>
+            </div>
+            <div class="msg-timestamp">Just now • JusBid AI</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Typing / Processing Indicator (Hidden by default) -->
+      <div class="chat-typing-indicator" id="chat-typing-indicator" style="display: none;">
+        <div class="typing-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+          </svg>
+        </div>
+        <div class="typing-bubble">
+          <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span class="typing-text">Searching verified knowledge base...</span>
+        </div>
+      </div>
+
+      <!-- Chat Footer / Input Form -->
+      <form class="chat-input-bar" id="chat-input-form">
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            id="chat-user-input" 
+            placeholder="Ask anything about auctions, bids, refunds..." 
+            autocomplete="off" 
+            maxlength="1000"
+            required
+          >
+          <button type="submit" class="chat-send-btn" id="chat-send-btn" aria-label="Send message" title="Send message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+        <div class="chat-input-hint">
+          <span>Press <strong>Enter</strong> to send • Verified JusBid RAG System</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-left">
+        <span class="footer-brand">JusBid Platform</span>
+        <span class="footer-copy">© 2026 JusBid Inc. All rights reserved. RAG AI Support System v0.1.0</span>
+      </div>
+      <div class="footer-links">
+        <a href="#auctions">Auctions</a>
+        <a href="#knowledge">Documentation</a>
+        <a href="/health" target="_blank" class="api-link">API Health Check</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
