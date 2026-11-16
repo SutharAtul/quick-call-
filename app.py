@@ -2,11 +2,11 @@ import json
 import logging
 import os
 import re
-import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+from bson import ObjectId
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,11 +49,12 @@ FAQ_SOURCE_PATH = Path("data/faq.json")
 memory_knowledge: List[Dict[str, Any]] = []
 mongo_client: Optional[MongoClient] = None
 mongo_collection = None
+bookings_collection = None
 
 
 def init_mongo() -> bool:
     """Attempts to connect to MongoDB Atlas safely without throwing unhandled exceptions."""
-    global mongo_client, mongo_collection
+    global mongo_client, mongo_collection, bookings_collection
     mongo_uri = os.getenv("MONGODB_URI")
     if not mongo_uri:
         logger.info("MONGODB_URI not provided; running with local knowledge base.")
@@ -66,12 +67,10 @@ def init_mongo() -> bool:
         )
         client.admin.command("ping")
         mongo_client = client
-        mongo_collection = client[
-            os.getenv("MONGODB_DATABASE", "jusbid_ai")
-        ][
-            os.getenv("MONGODB_COLLECTION", "knowledge")
-        ]
-        logger.info("MongoDB Atlas connected successfully.")
+        db_name = os.getenv("MONGODB_DATABASE", "jusbid_ai")
+        mongo_collection = client[db_name][os.getenv("MONGODB_COLLECTION", "knowledge")]
+        bookings_collection = client[db_name][os.getenv("MONGODB_BOOKINGS_COLLECTION", "bookings")]
+        logger.info("MongoDB Atlas connected successfully (knowledge & bookings collections active).")
         return True
     except Exception as e:
         logger.warning(
@@ -80,6 +79,7 @@ def init_mongo() -> bool:
         )
         mongo_client = None
         mongo_collection = None
+        bookings_collection = None
         return False
 
 
@@ -137,13 +137,153 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     question: str = Field(min_length=2, max_length=1000)
+    customer_id: Optional[str] = None
+    reservation_id: Optional[str] = None
+    series: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 
-class DocumentCreate(BaseModel):
-    title: str = Field(min_length=2, max_length=200)
-    category: str = Field(default="general", max_length=50)
-    version: str = Field(default="1.0", max_length=20)
-    text: str = Field(min_length=10, max_length=15000)
+BOOKING_KEYWORDS = [
+    "booking", "reservation", "check in", "check-in", "checkout", "check-out",
+    "room number", "room no", "stay", "breakfast included", "meal plan",
+    "property", "hotel", "my room", "booking status", "my reservation", "res-"
+]
+
+
+def is_booking_intent(question: str) -> bool:
+    q = question.lower()
+    return any(k in q for k in BOOKING_KEYWORDS)
+
+
+def extract_booking_identifiers(text: str) -> Dict[str, Optional[str]]:
+    """Extracts possible reservation IDs, series codes, emails, or phone numbers from question text."""
+    identifiers: Dict[str, Optional[str]] = {
+        "reservation_id": None,
+        "series": None,
+        "email": None,
+        "phone": None,
+    }
+    # Match RES-XXXXX-XXXXX...
+    res_match = re.search(r'\b(RES-[A-Za-z0-9\-]+)\b', text, re.IGNORECASE)
+    if res_match:
+        identifiers["reservation_id"] = res_match.group(1).upper()
+
+    # Match series BK-XXXXX
+    series_match = re.search(r'\b(BK-[A-Za-z0-9]+)\b', text, re.IGNORECASE)
+    if series_match:
+        identifiers["series"] = series_match.group(1).upper()
+
+    # Match email
+    email_match = re.search(r'\b([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})\b', text)
+    if email_match:
+        identifiers["email"] = email_match.group(1).lower()
+
+    # Match phone number (10 to 13 digits, optional +)
+    phone_match = re.search(r'(\+?\d{10,13})', text)
+    if phone_match:
+        identifiers["phone"] = phone_match.group(1)
+
+    return identifiers
+
+
+def find_booking(request: ChatRequest) -> Optional[Dict[str, Any]]:
+    """Queries MongoDB bookings collection using provided or extracted identifiers."""
+    if bookings_collection is None:
+        return None
+
+    extracted = extract_booking_identifiers(request.question)
+    res_id = request.reservation_id or extracted.get("reservation_id")
+    series = request.series or extracted.get("series")
+    email = request.email or extracted.get("email")
+    phone = request.phone or extracted.get("phone")
+    customer_id = request.customer_id
+
+    query_parts: List[Dict[str, Any]] = []
+    if res_id:
+        query_parts.append({"reservation_id": {"$regex": f"^{re.escape(res_id)}$", "$options": "i"}})
+    if series:
+        query_parts.append({"series": {"$regex": f"^{re.escape(series)}$", "$options": "i"}})
+    if email:
+        query_parts.append({"guestEmail": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
+    if phone:
+        # Match by last 10 digits to be flexible with country code
+        clean_phone = re.sub(r'\D', '', phone)
+        suffix = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
+        query_parts.append({"guestContact": {"$regex": f"{re.escape(suffix)}"}})
+    if customer_id:
+        try:
+            query_parts.append({"customerId": ObjectId(customer_id)})
+        except Exception:
+            query_parts.append({"customerId": customer_id})
+
+    if not query_parts:
+        return None
+
+    try:
+        booking = bookings_collection.find_one({"$or": query_parts})
+        return booking
+    except Exception as e:
+        logger.warning("Error finding booking in MongoDB: %s", e)
+        return None
+
+
+def summarize_booking(doc: Dict[str, Any]) -> str:
+    """Formats a clean, token-efficient summary of the MongoDB booking document."""
+    prop_name = doc.get("property_name", "Hotel Property")
+    res_id = doc.get("reservation_id", "N/A")
+    series = doc.get("series", "N/A")
+    guest_name = doc.get("guestName", "Guest")
+    guest_email = doc.get("guestEmail", "N/A")
+    guest_contact = doc.get("guestContact", "N/A")
+    status = doc.get("status", "N/A")
+    rate_plan = doc.get("rate_plan", "Standard Plan")
+    payment_status = doc.get("paymentStatus", "N/A")
+    total_amount = doc.get("totalAmount", doc.get("grandTotal", 0))
+    total_paid = doc.get("totalPaid", 0)
+
+    def _fmt_date(val: Any) -> str:
+        if isinstance(val, dict) and "$date" in val:
+            return str(val["$date"])[:10]
+        if hasattr(val, "strftime"):
+            return val.strftime("%Y-%m-%d")
+        return str(val)[:10] if val else "N/A"
+
+    check_in = _fmt_date(doc.get("checkInDate"))
+    check_out = _fmt_date(doc.get("checkOutDate"))
+
+    # Room units
+    room_units = doc.get("room_units", [])
+    rooms_list = []
+    for ru in room_units:
+        if isinstance(ru, dict):
+            r_no = ru.get("room_no", "Assigned upon check-in")
+            r_type = ru.get("room_type", doc.get("room_name", "Room"))
+            rooms_list.append(f"Room {r_no} ({r_type})")
+    rooms_desc = ", ".join(rooms_list) if rooms_list else doc.get("room_name", "Standard Room")
+
+    adults = doc.get("adultsCount", 1)
+    children = doc.get("childrenCount", 0)
+
+    # Payments info
+    payments = doc.get("payments", [])
+    tx_ids = [p.get("paymentTransactionId") for p in payments if isinstance(p, dict) and p.get("paymentTransactionId")]
+    tx_str = ", ".join(tx_ids) if tx_ids else "N/A"
+
+    return (
+        f"Verified Reservation Details from Database:\n"
+        f"• Property: {prop_name}\n"
+        f"• Reservation ID: {res_id} (Booking Ref: {series})\n"
+        f"• Guest Name: {guest_name} | Email: {guest_email} | Contact: {guest_contact}\n"
+        f"• Reservation Status: {status}\n"
+        f"• Check-in Date: {check_in}\n"
+        f"• Check-out Date: {check_out}\n"
+        f"• Assigned Room: {rooms_desc}\n"
+        f"• Rate Plan & Meals: {rate_plan}\n"
+        f"• Guests: {adults} Adult(s), {children} Child(ren)\n"
+        f"• Payment Status: {payment_status} (Grand Total: {total_amount}, Total Paid: {total_paid})\n"
+        f"• Transaction ID: {tx_str}\n"
+    )
 
 
 def embed(text: str) -> Optional[List[float]]:
@@ -374,14 +514,94 @@ def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, 
     }
 
 
+def generate_booking_answer(question: str, booking: Dict[str, Any], evidence: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Generates personalized concierge response using verified MongoDB booking details."""
+    summary = summarize_booking(booking)
+    policy_context = ""
+    if evidence:
+        policy_context = "\n\nOfficial Policy References:\n" + "\n\n".join(
+            f"--- Policy: {item['title']} ---\n{item['text']}" for item in evidence
+        )
+
+    system_prompt = (
+        "You are the official 24/7 AI Customer Support Concierge for JusBid.\n"
+        "You are assisting a guest with inquiries regarding their verified hotel reservation.\n\n"
+        "Guidelines:\n"
+        "1. Use the Verified Reservation Details below to provide specific, polite, and accurate answers.\n"
+        "2. Address the guest's question clearly: mention hotel property, check-in/out dates, room number, rate plan / meals, or payment details.\n"
+        "3. If they ask about cancellation or refunds, evaluate their check-in date against the Official Policy References.\n"
+        "4. Emphasize account security: remind guests never to share OTPs or passwords.\n"
+        "5. Be concise, warm, professional, and use bullet points where helpful.\n"
+        "6. Do not mention internal JSON keys or MongoDB; speak naturally as a hotel concierge."
+    )
+
+    user_prompt = (
+        f"Guest Question: {question}\n\n"
+        f"{summary}"
+        f"{policy_context}\n\n"
+        f"Please provide an accurate, friendly concierge response:"
+    )
+
+    try:
+        response = ai.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=250,
+            temperature=0.2,
+        )
+        answer_text = response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error("Chat completion error on booking: %s", e)
+        prop = booking.get('property_name', 'your hotel')
+        res_id = booking.get('reservation_id', 'N/A')
+        answer_text = (
+            f"Here are the verified details for your reservation at **{prop}**:\n"
+            f"• **Reservation ID**: {res_id}\n"
+            f"• **Status**: {booking.get('status')}\n"
+            f"• **Check-in**: {str(booking.get('checkInDate'))[:10]}\n"
+            f"• **Check-out**: {str(booking.get('checkOutDate'))[:10]}\n"
+            f"• **Rate Plan**: {booking.get('rate_plan')}\n"
+            f"• **Payment Status**: {booking.get('paymentStatus')}\n\n"
+            f"If you need further personal assistance with your stay, please click 'Quick Call' to speak directly with our concierge desk."
+        )
+
+    sources = [
+        {
+            "document_id": booking.get("reservation_id", "booking-record"),
+            "title": f"Reservation: {booking.get('property_name', 'Hotel')}",
+            "version": booking.get("series", "1.0"),
+            "score": 1.0,
+        }
+    ]
+    for ev in evidence:
+        if ev.get("score", 0) >= 0.40:
+            sources.append(ev)
+
+    return {
+        "answer": answer_text,
+        "sources": sources,
+        "escalation_recommended": False,
+    }
+
+
 @app.get("/health")
 def health():
     db_status = "connected" if mongo_collection is not None else "local_cache_active"
+    bookings_count = 0
+    if bookings_collection is not None:
+        try:
+            bookings_count = bookings_collection.count_documents({})
+        except Exception:
+            pass
     return {
         "status": "ok",
         "service": "JusBid AI Support Assistant",
         "database": db_status,
         "indexed_documents": len(memory_knowledge),
+        "indexed_bookings": bookings_count,
         "embedding_model": EMBED_MODEL,
         "chat_model": CHAT_MODEL,
     }
@@ -401,6 +621,38 @@ def get_faqs():
 @app.post("/chat")
 def chat(request: ChatRequest):
     try:
+        # 1. Check for booking inquiry or booking identifiers
+        booking_intent = is_booking_intent(request.question)
+        identifiers = extract_booking_identifiers(request.question)
+        has_identifier = any([
+            request.reservation_id, request.series, request.email, request.phone, request.customer_id,
+            identifiers["reservation_id"], identifiers["series"], identifiers["email"], identifiers["phone"]
+        ])
+
+        if has_identifier or booking_intent:
+            booking = find_booking(request)
+            if booking:
+                evidence = retrieve(request.question, limit=2)
+                return generate_booking_answer(request.question, booking, evidence)
+            elif has_identifier:
+                return {
+                    "answer": (
+                        "I searched our reservation records, but could not find an active booking matching that ID, reference, or contact details. "
+                        "Please verify your **Reservation ID** (e.g., `RES-...` or `BK-...`) or click **'Quick Call'** to connect with our front desk team."
+                    ),
+                    "sources": [],
+                    "escalation_recommended": True,
+                }
+            elif booking_intent:
+                return {
+                    "answer": (
+                        "I would be delighted to assist you with your reservation! 🏨\n\n"
+                        "Please provide your **Reservation ID** (e.g. `RES-...` or `BK-...`) or your registered **Email / Phone Number** so I can pull up your stay details."
+                    ),
+                    "sources": [],
+                    "escalation_recommended": False,
+                }
+
         evidence = retrieve(request.question)
         return generate_answer(request.question, evidence)
     except Exception as e:
@@ -419,164 +671,6 @@ def chat(request: ChatRequest):
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-
-@app.get("/api/documents")
-def list_documents():
-    """Returns all knowledge base documents from MongoDB or in-memory cache."""
-    docs = []
-    if mongo_collection is not None:
-        try:
-            raw_docs = list(
-                mongo_collection.find(
-                    {},
-                    {
-                        "_id": 1,
-                        "document_id": 1,
-                        "title": 1,
-                        "category": 1,
-                        "version": 1,
-                        "text": 1,
-                        "approved": 1,
-                        "embedding": 1,
-                    },
-                )
-            )
-            for d in raw_docs:
-                docs.append({
-                    "id": str(d.get("_id", d.get("document_id", ""))),
-                    "document_id": d.get("document_id", ""),
-                    "title": d.get("title", "Untitled Document"),
-                    "category": d.get("category", "general"),
-                    "version": d.get("version", "1.0"),
-                    "approved": d.get("approved", True),
-                    "text": d.get("text", ""),
-                    "has_embedding": bool(d.get("embedding")),
-                })
-            return {"status": "ok", "source": "mongodb", "count": len(docs), "documents": docs}
-        except Exception as e:
-            logger.warning("Failed to fetch documents from MongoDB: %s", e)
-
-    # Fallback to in-memory knowledge store
-    for d in memory_knowledge:
-        docs.append({
-            "id": str(d.get("_id", d.get("document_id", ""))),
-            "document_id": d.get("document_id", ""),
-            "title": d.get("title", "Untitled Document"),
-            "category": d.get("category", "general"),
-            "version": d.get("version", "1.0"),
-            "approved": d.get("approved", True),
-            "text": d.get("text", ""),
-            "has_embedding": bool(d.get("embedding")),
-        })
-    return {"status": "ok", "source": "local_cache", "count": len(docs), "documents": docs}
-
-
-@app.post("/api/documents")
-def create_or_update_document(doc_in: DocumentCreate):
-    """Indexes a new document into MongoDB and local memory with AI vector embeddings."""
-    global memory_knowledge
-
-    # Generate document slug ID
-    slug = re.sub(r"[^a-z0-9]+", "-", doc_in.title.lower()).strip("-")[:40] or "doc"
-    doc_id = f"{slug}-{int(time.time())}"
-    chunk_id = f"{doc_id}-0"
-
-    # Compute embedding
-    vector = embed(doc_in.text)
-
-    record = {
-        "_id": chunk_id,
-        "document_id": doc_id,
-        "title": doc_in.title.strip(),
-        "category": doc_in.category.strip().lower(),
-        "version": doc_in.version.strip(),
-        "approved": True,
-        "text": doc_in.text.strip(),
-        "chunk_index": 0,
-        "embedding_model": EMBED_MODEL,
-        "embedding": vector,
-    }
-
-    # 1. Save to MongoDB Atlas
-    mongo_saved = False
-    if mongo_collection is not None:
-        try:
-            mongo_collection.replace_one({"_id": chunk_id}, record, upsert=True)
-            mongo_saved = True
-            logger.info("Document '%s' successfully indexed in MongoDB Atlas.", doc_in.title)
-        except Exception as e:
-            logger.error("Failed to write document to MongoDB: %s", e)
-
-    # 2. Update memory knowledge cache
-    memory_knowledge = [d for d in memory_knowledge if d.get("_id") != chunk_id and d.get("document_id") != doc_id]
-    memory_knowledge.append(record)
-
-    # 3. Persist to local cache file
-    try:
-        LOCAL_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        LOCAL_CACHE_PATH.write_text(json.dumps(memory_knowledge, indent=2), encoding="utf-8")
-    except Exception as e:
-        logger.warning("Failed to persist updated cache to disk: %s", e)
-
-    return {
-        "status": "success",
-        "message": f"Document '{doc_in.title}' indexed successfully.",
-        "database_updated": mongo_saved,
-        "has_embedding": bool(vector),
-        "document": {
-            "id": chunk_id,
-            "document_id": doc_id,
-            "title": record["title"],
-            "category": record["category"],
-            "version": record["version"],
-            "text": record["text"][:100] + "..." if len(record["text"]) > 100 else record["text"],
-            "has_embedding": bool(vector),
-        },
-    }
-
-
-@app.delete("/api/documents/{doc_id}")
-def delete_document(doc_id: str):
-    """Deletes a document from MongoDB and local memory cache."""
-    global memory_knowledge
-    mongo_deleted = False
-
-    if mongo_collection is not None:
-        try:
-            res = mongo_collection.delete_many({"$or": [{"_id": doc_id}, {"document_id": doc_id}]})
-            mongo_deleted = res.deleted_count > 0
-            logger.info("Document '%s' removed from MongoDB. Deleted count: %d", doc_id, res.deleted_count)
-        except Exception as e:
-            logger.error("Failed to delete document from MongoDB: %s", e)
-
-    orig_count = len(memory_knowledge)
-    memory_knowledge = [d for d in memory_knowledge if d.get("_id") != doc_id and d.get("document_id") != doc_id]
-
-    try:
-        LOCAL_CACHE_PATH.write_text(json.dumps(memory_knowledge, indent=2), encoding="utf-8")
-    except Exception as e:
-        logger.warning("Failed to save cache after document deletion: %s", e)
-
-    return {
-        "status": "success",
-        "message": f"Document '{doc_id}' deleted successfully.",
-        "mongo_deleted": mongo_deleted,
-        "cache_deleted": orig_count > len(memory_knowledge),
-    }
-
-
-@app.get("/admin")
-@app.get("/portal")
-def serve_admin():
-    admin_file = os.path.join(STATIC_DIR, "admin.html")
-    if os.path.isfile(admin_file):
-        return FileResponse(admin_file)
-    return {
-        "status": "ok",
-        "service": "JusBid Knowledge Portal",
-        "info": "Admin portal will be served once static/admin.html is created.",
-    }
 
 
 @app.get("/")
