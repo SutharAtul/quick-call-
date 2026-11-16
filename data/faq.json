@@ -1,0 +1,50 @@
+[
+  {
+    "id": "refund-policy-v1",
+    "title": "Refund & Cancellation Policy",
+    "category": "refunds",
+    "version": "1.2",
+    "approved": true,
+    "text": "Refund eligibility depends on the specific auction terms and booking status. In general: 1. Full refunds are granted if an auction is canceled by the host or if the experience cannot be fulfilled as described. 2. A customer may request a cancellation within 48 hours of winning the auction, provided the travel or voucher redemption date is at least 14 days away. 3. Processing fees and security deposits are refunded within 3-5 business days back to the original payment method. 4. Once a voucher has been confirmed or checked-in with the partner hotel/resort, it becomes non-refundable. If your issue cannot be resolved by standard terms, our support team can review special exceptions."
+  },
+  {
+    "id": "account-support-v1",
+    "title": "Account Access & Security",
+    "category": "account",
+    "version": "1.2",
+    "approved": true,
+    "text": "Customer account security is our top priority. If you experience difficulty accessing your JusBid account: 1. Use the 'Forgot Password' link on the sign-in page to receive a secure password reset link via your registered email. 2. Enable Two-Factor Authentication (2FA) in Account Settings for enhanced protection. 3. Identity verification (KYC) is required before placing bids exceeding $5,000; submit a government-issued photo ID via the secure portal. 4. Important security reminder: JusBid support representatives will NEVER ask you for your account password, one-time verification codes (OTP), or full credit card CVV."
+  },
+  {
+    "id": "auction-support-v1",
+    "title": "Auction Rules & Bidding Guide",
+    "category": "auctions",
+    "version": "1.2",
+    "approved": true,
+    "text": "How JusBid auctions work: 1. Every auction specifies a reserve price and minimum bid increment (typically $25, $50, or $100 depending on item tier). 2. When you place a bid, your funds are temporarily authorized until outbid. 3. Anti-Sniping Protection: If a bid is placed in the final 60 seconds of an auction, the timer automatically extends by 2 minutes to ensure fair competition. 4. Bids placed are legally binding and cannot be retracted once submitted unless an obvious typographical error occurred and is reported within 5 minutes. 5. When the countdown timer expires, the highest bidder above reserve wins the auction."
+  },
+  {
+    "id": "payment-billing-v1",
+    "title": "Payment Methods & Invoicing",
+    "category": "billing",
+    "version": "1.1",
+    "approved": true,
+    "text": "JusBid supports all major payment options: 1. Credit and Debit Cards (Visa, Mastercard, American Express, Discover). 2. Digital Wallets (Apple Pay, Google Pay). 3. Bank wire transfers for high-value bids over $10,000. 4. Invoices and official tax receipts are automatically generated and downloadable from your 'Billing History' dashboard immediately after payment completion. 5. All transactions are processed using 256-bit bank-grade TLS encryption with fraud detection."
+  },
+  {
+    "id": "fulfillment-v1",
+    "title": "Fulfillment & Voucher Claiming",
+    "category": "fulfillment",
+    "version": "1.1",
+    "approved": true,
+    "text": "Claiming your won auction: 1. Upon winning an auction and completing payment, a digital certificate and unique booking voucher code will appear in your 'My Bids' section within 10 minutes. 2. To redeem, follow the contact details and booking link provided on your certificate to reserve your specific dates with the partner hotel, resort, or concierge service. 3. Vouchers are valid for 12 months from auction date unless explicitly stated otherwise in the lot details. 4. You can transfer or gift a voucher to another guest by selecting 'Gift Voucher' in your dashboard."
+  },
+  {
+    "id": "escalation-v1",
+    "title": "Support Escalation & Quick Call",
+    "category": "support",
+    "version": "1.1",
+    "approved": true,
+    "text": "When to escalate to a human agent: 1. If your question is not covered in our approved knowledge base or involves an active disputed bid, our AI assistant will recommend immediate human escalation. 2. Use the 'Quick Call' button to schedule an instant callback with a JusBid concierge specialist (typical callback wait time is under 2 minutes). 3. You can also reach our 24/7 priority support desk via email at support@jusbid.ai or toll-free at 1-800-JUSBID."
+  }
+]

@@ -1,0 +1,6 @@
+openai
+pymongo
+python-dotenv
+fastapi
+uvicorn[standard]
+numpy
