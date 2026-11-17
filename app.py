@@ -375,25 +375,107 @@ def retrieve(question: str, limit: int = 4) -> List[Dict[str, Any]]:
     return []
 
 
-GREETINGS = {
-    "hi", "hello", "hey", "hola", "greetings", "good morning", "good afternoon",
-    "good evening", "who are you", "what are you", "what can you do", "help",
-    "how does this work", "how can you help", "how are you", "start"
+def normalize_greeting(text: str) -> str:
+    """Normalizes greeting variations, punctuation, and collapsed letters (e.g., 'hiii' -> 'hi')."""
+    clean = text.lower().strip(" !?.,;:-_~")
+    # Collapse repeated characters (hiii -> hi, heyy -> hey, hellooo -> hello)
+    clean = re.sub(r'h+i+', 'hi', clean)
+    clean = re.sub(r'h+e+y+', 'hey', clean)
+    clean = re.sub(r'h+e+l+o+', 'hello', clean)
+    clean = re.sub(r'y+o+', 'yo', clean)
+    return clean
+
+
+GREETING_WORDS = {
+    "hi", "hello", "hey", "hola", "namaste", "howdy", "yo", "sup",
+    "greetings", "morning", "afternoon", "evening"
+}
+
+GREETING_PHRASES = {
+    "good morning", "good afternoon", "good evening", "good day",
+    "how are you", "how are you doing", "how are u", "how is it going",
+    "hows it going", "how's it going", "what's up", "whats up",
+    "who are you", "what can you do", "help me", "help",
+    "thanks", "thank you", "thank u", "thx"
 }
 
 
+CONVERSATIONAL_PATTERNS = [
+    r'\bhow are (you|u|you doing)\b',
+    r'\bhow(\'s|s| is) it going\b',
+    r'\bhow do you do\b',
+    r'\bwhat(\'s|s| is) up\b',
+    r'\bgood (morning|afternoon|evening|day|night)\b',
+    r'\bwho are you\b',
+    r'\bwhat can you do\b',
+    r'\b(thank you|thanks|thank u|thx)\b',
+    r'\bnice to meet you\b',
+    r'\bhelp me\b',
+]
+
+
 def is_greeting(question: str) -> bool:
-    clean = question.lower().strip(" !?.,;:")
-    if clean in GREETINGS:
+    norm = normalize_greeting(question)
+    raw_clean = question.lower().strip(" !?.,;:-_~")
+
+    # Match common conversational patterns (e.g. "how are you doing today", "good morning sir")
+    if any(re.search(pat, raw_clean) for pat in CONVERSATIONAL_PATTERNS):
         return True
-    if any(clean.startswith(g + " ") for g in ["hi", "hello", "hey", "good morning", "good evening"]):
-        return len(clean.split()) <= 4
+
+    words = norm.split()
+    if not words:
+        return False
+
+    # Starts with a greeting word (e.g. "hi", "hii", "hello", "hey", "namaste") and is short
+    if words[0] in GREETING_WORDS and len(words) <= 6:
+        return True
+
     return False
+
+
+def generate_greeting_response(question: str) -> Dict[str, Any]:
+    """Generates a warm, natural, human-like concierge greeting."""
+    system_prompt = (
+        "You are the warm, polite, and attentive 24/7 AI Hotel & Support Concierge for JusBid.\n"
+        "A guest has just greeted you or made friendly small talk.\n"
+        "Guidelines:\n"
+        "- Respond warmly, conversationally, and courteously, just like a professional 5-star hotel concierge.\n"
+        "- Ask how you can assist them today with their hotel stay, reservation, or platform inquiries.\n"
+        "- Keep your reply concise (1 to 2 sentences).\n"
+        "- Sound natural and human. Do NOT dump bullet lists of rules or platform manuals unless specifically asked."
+    )
+    try:
+        response = ai.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question},
+            ],
+            max_tokens=80,
+            temperature=0.7,
+        )
+        answer = response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.warning("Greeting LLM error, using human fallback: %s", e)
+        q = question.lower()
+        if any(w in q for w in ["thank", "thx"]):
+            answer = "You're very welcome! 😊 Please let me know if you need any other assistance. Have a wonderful day!"
+        elif any(w in q for w in ["how are you", "how's it going", "hows it going"]):
+            answer = "I'm doing well, thank you for asking! 😊 How can I help you with your hotel stay or booking today?"
+        else:
+            answer = "Hello! 👋 Welcome to JusBid. How can I assist you with your hotel reservation or stay today?"
+
+    return {
+        "answer": answer,
+        "sources": [],
+        "escalation_recommended": False,
+    }
 
 
 UNMATCHED_MESSAGE = (
     "Sorry, I can't help with that as it is outside our verified support policies.\n\n"
     "I can only help with:\n"
+    "• **Your Hotel Bookings & Stays** (check-in/out dates, room numbers, meal plans, payment status)\n"
     "• **Bidding & Auction Rules** (reserve prices, bid increments, anti-sniping protection)\n"
     "• **Refund & Cancellation Policy** (eligibility, cancellation windows, deposit returns)\n"
     "• **Account Access & Security** (password reset, 2FA, identity verification)\n"
@@ -405,22 +487,9 @@ UNMATCHED_MESSAGE = (
 
 def generate_answer(question: str, evidence: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Generates customer support response using approved evidence."""
-    # Friendly greeting / capability check
+    # Friendly human greeting / small talk check
     if is_greeting(question):
-        return {
-            "answer": (
-                "Hello! 👋 I'm your 24/7 JusBid AI Support Concierge.\n\n"
-                "I can assist you with:\n"
-                "• **Bidding & Auction Rules** (reserve prices, anti-sniping)\n"
-                "• **Refunds & Cancellations** (timelines, deposit releases)\n"
-                "• **Payments & Invoicing** (cards, wallets, bank wire)\n"
-                "• **Account Access & 2FA** (password reset, identity verification)\n"
-                "• **Voucher Claiming** (redeeming your won auctions)\n\n"
-                "How may I assist you today? You can also click **'Quick Call'** anytime for immediate human concierge support."
-            ),
-            "sources": [],
-            "escalation_recommended": False,
-        }
+        return generate_greeting_response(question)
 
     # If no evidence or top evidence score is too weak
     if not evidence or (evidence and evidence[0].get("score", 0) < 0.40):
